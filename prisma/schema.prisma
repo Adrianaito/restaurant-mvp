@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Business {
+  id          String       @id @default(cuid())
+  name        String
+  products    Product[]
+  ingredients Ingredient[]
+  orders      Order[]
+}
+
+model Product {
+  id          String       @id @default(cuid())
+  name        String
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id])
+  recipeItems RecipeItem[]
+  orderItems  OrderItem[]
+}
+
+model Ingredient {
+  id          String       @id @default(cuid())
+  name        String
+  stock       Float
+  unit        String
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id])
+  recipeItems RecipeItem[]
+}
+
+model RecipeItem {
+  id           String     @id @default(cuid())
+  productId    String
+  ingredientId String
+  amount       Float
+  product      Product    @relation(fields: [productId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  businessId String
+  label      String
+  status     String      @default("draft")
+  createdAt  DateTime    @default(now())
+  business   Business    @relation(fields: [businessId], references: [id])
+  items      OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
