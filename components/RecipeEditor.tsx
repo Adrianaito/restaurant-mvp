@@ -1,19 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-type Ingredient = {
-  id: string;
-  name: string;
-  unit: string;
-};
-
-type RecipeItem = {
-  ingredientId: string;
-  amount: number;
-};
-
+type Ingredient = { id: string; name: string; unit: string };
+type RecipeItem = { ingredientId: string; amount: number };
 type Product = {
   id: string;
   name: string;
@@ -24,6 +15,11 @@ type Product = {
   }[];
 };
 
+type ParsedIngredient = { name: string; amount: number; unit: string };
+type MatchResult =
+  | { status: "matched"; ingredient: Ingredient; amount: number }
+  | { status: "unmatched"; name: string; amount: number; unit: string };
+
 export default function RecipeEditor() {
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -32,30 +28,69 @@ export default function RecipeEditor() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
+  // New product form
+  const [newProductName, setNewProductName] = useState("");
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+
+  // PDF parsing
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseResults, setParseResults] = useState<MatchResult[] | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  async function fetchData() {
+    const [prods, ings] = await Promise.all([
       fetch("/api/recipes").then((r) => r.json()),
       fetch("/api/ingredients").then((r) => r.json()),
-    ]).then(([prods, ings]) => {
-      setProducts(prods);
-      setIngredients(ings);
+    ]);
+    setProducts(prods);
+    setIngredients(ings);
+  }
+
+  useEffect(() => { fetchData(); }, []);
+
+  async function addProduct() {
+    if (!newProductName.trim()) return;
+    setAddingProduct(true);
+    await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newProductName.trim() }),
     });
-  }, []);
+    setNewProductName("");
+    setShowAddProduct(false);
+    setAddingProduct(false);
+    fetchData();
+  }
+
+  async function deleteProduct(id: string) {
+    if (selectedProductId === id) {
+      setSelectedProductId(null);
+      setRecipeItems([]);
+    }
+    await fetch("/api/products", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchData();
+  }
 
   function selectProduct(productId: string) {
     setSelectedProductId(productId);
     setSaved(false);
+    setParseResults(null);
+    setParseError(null);
     const product = products.find((p) => p.id === productId);
-    if (product) {
-      setRecipeItems(
-        product.recipeItems.map((ri) => ({
-          ingredientId: ri.ingredientId,
-          amount: ri.amount,
-        }))
-      );
-    } else {
-      setRecipeItems([]);
-    }
+    setRecipeItems(
+      product
+        ? product.recipeItems.map((ri) => ({
+            ingredientId: ri.ingredientId,
+            amount: ri.amount,
+          }))
+        : []
+    );
   }
 
   function addIngredient(ingredientId: string) {
@@ -101,6 +136,69 @@ export default function RecipeEditor() {
     );
     setSaving(false);
     setSaved(true);
+    setParseResults(null);
+  }
+
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setParsing(true);
+    setParseResults(null);
+    setParseError(null);
+
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await fetch("/api/recipes/parse", { method: "POST", body: form });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      setParseError(data.error ?? "Failed to parse PDF.");
+      setParsing(false);
+      // Reset the file input so the same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const parsed: ParsedIngredient[] = data.ingredients ?? [];
+
+    // Match each parsed ingredient against existing ingredients by name
+    const results: MatchResult[] = parsed.map((p) => {
+      const match = ingredients.find(
+        (ing) => ing.name.toLowerCase() === p.name.toLowerCase()
+      );
+      if (match) {
+        return { status: "matched", ingredient: match, amount: p.amount };
+      }
+      return { status: "unmatched", name: p.name, amount: p.amount, unit: p.unit };
+    });
+
+    setParseResults(results);
+    setParsing(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function applyParsedRecipe() {
+    if (!parseResults) return;
+    const matched = parseResults.filter(
+      (r): r is Extract<MatchResult, { status: "matched" }> => r.status === "matched"
+    );
+    // Merge with existing items — don't remove anything already there
+    setRecipeItems((prev) => {
+      const next = [...prev];
+      for (const m of matched) {
+        const existing = next.findIndex((ri) => ri.ingredientId === m.ingredient.id);
+        if (existing >= 0) {
+          next[existing] = { ...next[existing], amount: m.amount };
+        } else {
+          next.push({ ingredientId: m.ingredient.id, amount: m.amount });
+        }
+      }
+      return next;
+    });
+    setSaved(false);
+    setParseResults(null);
   }
 
   const availableToAdd = ingredients.filter(
@@ -122,36 +220,150 @@ export default function RecipeEditor() {
 
         {/* Product selector */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4 sm:mb-6">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Select product
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              Products
+            </p>
+            <button
+              onClick={() => setShowAddProduct((v) => !v)}
+              className="text-sm font-semibold text-blue-600 active:text-blue-800"
+            >
+              {showAddProduct ? "Cancel" : "+ Add product"}
+            </button>
+          </div>
+
+          {showAddProduct && (
+            <div className="flex gap-3 mb-4">
+              <input
+                type="text"
+                placeholder="Product name..."
+                value={newProductName}
+                onChange={(e) => setNewProductName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addProduct()}
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                autoFocus
+              />
+              <button
+                onClick={addProduct}
+                disabled={addingProduct || !newProductName.trim()}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-base disabled:opacity-50 active:bg-blue-700"
+              >
+                Add
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             {products.length === 0 && (
-              <p className="text-gray-400">No products found.</p>
+              <p className="text-gray-400">No products yet. Add one above.</p>
             )}
             {products.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => selectProduct(p.id)}
-                className={`px-4 py-2 rounded-xl font-semibold text-base border transition-colors ${
-                  selectedProductId === p.id
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700 border-gray-300 active:bg-gray-50"
-                }`}
-              >
-                {p.name}
-              </button>
+              <div key={p.id} className="flex items-center gap-1">
+                <button
+                  onClick={() => selectProduct(p.id)}
+                  className={`px-4 py-2 rounded-xl font-semibold text-base border transition-colors ${
+                    selectedProductId === p.id
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-300 active:bg-gray-50"
+                  }`}
+                >
+                  {p.name}
+                </button>
+                <button
+                  onClick={() => deleteProduct(p.id)}
+                  className="text-gray-300 hover:text-red-400 text-xl leading-none px-1"
+                  aria-label={`Delete ${p.name}`}
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         </div>
 
         {selectedProductId && (
           <>
+            {/* PDF upload */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                  Import from PDF
+                </p>
+              </div>
+              <p className="text-sm text-gray-400 mb-3">
+                Upload a recipe PDF and AI will extract the ingredients automatically.
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handlePdfUpload}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsing}
+                className="px-5 py-2.5 bg-purple-600 text-white rounded-xl font-semibold text-base disabled:opacity-50 active:bg-purple-700"
+              >
+                {parsing ? "Reading PDF…" : "Upload PDF"}
+              </button>
+
+              {/* Parse error */}
+              {parseError && (
+                <p className="mt-3 text-sm text-red-500 font-medium">{parseError}</p>
+              )}
+
+              {/* Parse results preview */}
+              {parseResults && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">
+                    Found {parseResults.length} ingredient{parseResults.length !== 1 ? "s" : ""}:
+                  </p>
+                  <ul className="space-y-1.5 mb-4">
+                    {parseResults.map((r, i) =>
+                      r.status === "matched" ? (
+                        <li key={i} className="flex items-center gap-2 text-sm">
+                          <span className="text-green-500 font-bold">✓</span>
+                          <span className="font-medium text-gray-800">{r.ingredient.name}</span>
+                          <span className="text-gray-400">
+                            {r.amount} {r.ingredient.unit}
+                          </span>
+                        </li>
+                      ) : (
+                        <li key={i} className="flex items-center gap-2 text-sm">
+                          <span className="text-yellow-500 font-bold">!</span>
+                          <span className="font-medium text-gray-500 line-through">{r.name}</span>
+                          <span className="text-xs text-yellow-600 font-medium">
+                            not in your ingredients
+                          </span>
+                        </li>
+                      )
+                    )}
+                  </ul>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={applyParsedRecipe}
+                      disabled={!parseResults.some((r) => r.status === "matched")}
+                      className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-semibold text-sm disabled:opacity-40 active:bg-green-700"
+                    >
+                      Apply matched ingredients
+                    </button>
+                    <button
+                      onClick={() => setParseResults(null)}
+                      className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Current recipe items */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 mb-4">
               {recipeItems.length === 0 && (
                 <p className="text-center py-8 text-gray-400">
-                  No ingredients yet. Add one below.
+                  No ingredients yet. Upload a PDF or add one below.
                 </p>
               )}
               {recipeItems.map((ri) => {
