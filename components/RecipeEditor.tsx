@@ -86,7 +86,6 @@ export default function RecipeEditor() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productId: selectedProductId, items: recipeItems }),
     });
-    // Update local product cache so switching back reflects saved state
     setProducts((prev) =>
       prev.map((p) =>
         p.id === selectedProductId
@@ -109,20 +108,20 @@ export default function RecipeEditor() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Recipes</h1>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Recipes</h1>
           <Link
             href="/"
-            className="px-4 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold text-lg"
+            className="px-3 py-2 sm:px-4 sm:py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold text-base sm:text-lg"
           >
             ← Orders
           </Link>
         </div>
 
         {/* Product selector */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4 sm:mb-6">
           <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
             Select product
           </p>
@@ -159,24 +158,24 @@ export default function RecipeEditor() {
                 const ing = ingredients.find((i) => i.id === ri.ingredientId);
                 if (!ing) return null;
                 return (
-                  <div key={ri.ingredientId} className="flex items-center gap-4 px-5 py-4">
-                    <span className="flex-1 text-lg font-medium text-gray-800">
+                  <div key={ri.ingredientId} className="flex items-center gap-2 sm:gap-4 px-4 sm:px-5 py-4">
+                    <span className="flex-1 text-base sm:text-lg font-medium text-gray-800 min-w-0 truncate">
                       {ing.name}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       <input
                         type="number"
                         min="0"
                         step="0.1"
                         value={ri.amount}
                         onChange={(e) => updateAmount(ri.ingredientId, e.target.value)}
-                        className="w-24 border border-gray-300 rounded-xl px-3 py-2 text-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="w-16 sm:w-24 border border-gray-300 rounded-xl px-2 sm:px-3 py-2 text-base sm:text-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
-                      <span className="text-gray-400 text-sm w-8">{ing.unit}</span>
+                      <span className="text-gray-400 text-xs sm:text-sm w-6 sm:w-8">{ing.unit}</span>
                     </div>
                     <button
                       onClick={() => removeItem(ri.ingredientId)}
-                      className="text-red-400 hover:text-red-600 text-2xl font-light leading-none"
+                      className="shrink-0 text-red-400 hover:text-red-600 text-2xl font-light leading-none"
                       aria-label="Remove"
                     >
                       ×
@@ -188,7 +187,7 @@ export default function RecipeEditor() {
 
             {/* Add ingredient */}
             {availableToAdd.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4">
                 <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   Add ingredient
                 </p>
@@ -210,7 +209,7 @@ export default function RecipeEditor() {
             <button
               onClick={saveRecipe}
               disabled={saving}
-              className="w-full py-4 bg-blue-600 text-white rounded-2xl font-semibold text-xl disabled:opacity-50 active:bg-blue-700"
+              className="w-full py-4 bg-blue-600 text-white rounded-2xl font-semibold text-lg sm:text-xl disabled:opacity-50 active:bg-blue-700"
             >
               {saving ? "Saving…" : saved ? "Saved!" : "Save Recipe"}
             </button>

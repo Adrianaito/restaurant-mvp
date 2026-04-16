@@ -76,41 +76,43 @@ export default function OrderDetail({ orderId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push("/")}
-            className="text-blue-600 font-semibold text-lg px-2 py-1"
-          >
-            ← Back
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{order.label}</h1>
-            <span
-              className={`text-sm font-semibold ${
-                isDraft ? "text-yellow-600" : "text-green-600"
-              }`}
+      <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 sm:py-4 shadow-sm">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              onClick={() => router.push("/")}
+              className="shrink-0 text-blue-600 font-semibold text-base sm:text-lg px-1 py-1"
             >
-              {isDraft ? "Draft" : "Confirmed"}
-            </span>
+              ←
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{order.label}</h1>
+              <span
+                className={`text-sm font-semibold ${
+                  isDraft ? "text-yellow-600" : "text-green-600"
+                }`}
+              >
+                {isDraft ? "Draft" : "Confirmed"}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {isDraft && (
-          <button
-            onClick={confirmOrder}
-            disabled={confirming || order.items.length === 0}
-            className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold text-lg disabled:opacity-50 active:bg-green-700"
-          >
-            {confirming ? "Confirming..." : "Confirm Order"}
-          </button>
-        )}
+          {isDraft && (
+            <button
+              onClick={confirmOrder}
+              disabled={confirming || order.items.length === 0}
+              className="shrink-0 px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-xl font-bold text-sm sm:text-lg disabled:opacity-50 active:bg-green-700"
+            >
+              {confirming ? "Confirming…" : "Confirm"}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-4 space-y-6">
+      <div className="max-w-2xl mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
         {/* Order summary */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h2 className="text-lg font-semibold text-gray-600 mb-3 uppercase tracking-wide">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-600 mb-3 uppercase tracking-wide">
             Order Summary
           </h2>
           {order.items.length === 0 ? (
@@ -119,8 +121,8 @@ export default function OrderDetail({ orderId }: Props) {
             <ul className="divide-y divide-gray-100">
               {order.items.map((item) => (
                 <li key={item.id} className="flex items-center justify-between py-3">
-                  <span className="text-lg font-medium text-gray-800">{item.product.name}</span>
-                  <span className="text-xl font-bold text-gray-900 bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center">
+                  <span className="text-base sm:text-lg font-medium text-gray-800">{item.product.name}</span>
+                  <span className="text-lg sm:text-xl font-bold text-gray-900 bg-gray-100 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center">
                     {item.quantity}
                   </span>
                 </li>
@@ -135,7 +137,7 @@ export default function OrderDetail({ orderId }: Props) {
         )}
 
         {!isDraft && (
-          <div className="text-center py-6 text-green-600 font-semibold text-lg bg-green-50 rounded-2xl">
+          <div className="text-center py-6 text-green-600 font-semibold text-base sm:text-lg bg-green-50 rounded-2xl">
             Order confirmed. Inventory updated.
           </div>
         )}

@@ -13,6 +13,14 @@ model Business {
   products    Product[]
   ingredients Ingredient[]
   orders      Order[]
+  tables      Table[]
+}
+
+model Table {
+  id         String   @id @default(cuid())
+  name       String
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
 }
 
 model Product {

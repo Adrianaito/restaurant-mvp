@@ -20,16 +20,16 @@ const COLORS = [
 export default function ProductGrid({ products, onAdd, disabled }: Props) {
   return (
     <div>
-      <h2 className="text-lg font-semibold text-gray-600 mb-3 uppercase tracking-wide">
+      <h2 className="text-base sm:text-lg font-semibold text-gray-600 mb-3 uppercase tracking-wide">
         Add Items
       </h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {products.map((product, i) => (
           <button
             key={product.id}
             onClick={() => onAdd(product.id)}
             disabled={disabled}
-            className={`${COLORS[i % COLORS.length]} text-white rounded-2xl py-6 px-4 text-xl font-bold shadow-sm disabled:opacity-50 transition-transform active:scale-95`}
+            className={`${COLORS[i % COLORS.length]} text-white rounded-2xl py-5 sm:py-6 px-3 sm:px-4 text-lg sm:text-xl font-bold shadow-sm disabled:opacity-50 transition-transform active:scale-95`}
           >
             {product.name}
           </button>
