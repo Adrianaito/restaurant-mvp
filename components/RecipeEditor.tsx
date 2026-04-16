@@ -20,6 +20,8 @@ type MatchResult =
   | { status: "matched"; ingredient: Ingredient; amount: number }
   | { status: "unmatched"; name: string; amount: number; unit: string };
 
+const COMMON_UNITS = ["kg", "g", "L", "ml", "unit", "cup", "tbsp", "tsp"];
+
 export default function RecipeEditor() {
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -33,11 +35,18 @@ export default function RecipeEditor() {
   const [addingProduct, setAddingProduct] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
 
+  // Add ingredient search/create
+  const [ingSearch, setIngSearch] = useState("");
+  const [ingUnit, setIngUnit] = useState("kg");
+  const [ingCustomUnit, setIngCustomUnit] = useState("");
+  const [addingIng, setAddingIng] = useState(false);
+
   // PDF parsing
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parsing, setParsing] = useState(false);
   const [parseResults, setParseResults] = useState<MatchResult[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [addingUnmatchedIdx, setAddingUnmatchedIdx] = useState<number | null>(null);
 
   async function fetchData() {
     const [prods, ings] = await Promise.all([
@@ -49,6 +58,8 @@ export default function RecipeEditor() {
   }
 
   useEffect(() => { fetchData(); }, []);
+
+  // ── Product management ────────────────────────────────────────
 
   async function addProduct() {
     if (!newProductName.trim()) return;
@@ -82,6 +93,7 @@ export default function RecipeEditor() {
     setSaved(false);
     setParseResults(null);
     setParseError(null);
+    setIngSearch("");
     const product = products.find((p) => p.id === productId);
     setRecipeItems(
       product
@@ -93,10 +105,64 @@ export default function RecipeEditor() {
     );
   }
 
-  function addIngredient(ingredientId: string) {
+  // ── Ingredient management ─────────────────────────────────────
+
+  // Existing ingredients not yet on this recipe
+  const availableIngredients = ingredients.filter(
+    (ing) => !recipeItems.some((ri) => ri.ingredientId === ing.id)
+  );
+
+  // Filtered by search query
+  const searchTrimmed = ingSearch.trim().toLowerCase();
+  const filteredIngredients = searchTrimmed
+    ? availableIngredients.filter((ing) =>
+        ing.name.toLowerCase().includes(searchTrimmed)
+      )
+    : availableIngredients;
+
+  // Whether an exact-name match already exists anywhere (incl. already on recipe)
+  const exactMatch = ingredients.find(
+    (ing) => ing.name.toLowerCase() === searchTrimmed
+  );
+  const alreadyOnRecipe = exactMatch
+    ? recipeItems.some((ri) => ri.ingredientId === exactMatch.id)
+    : false;
+  const showCreateOption =
+    searchTrimmed.length > 0 && !exactMatch && !alreadyOnRecipe;
+
+  function addIngredientToRecipe(ingredientId: string) {
     if (recipeItems.some((ri) => ri.ingredientId === ingredientId)) return;
     setRecipeItems((prev) => [...prev, { ingredientId, amount: 1 }]);
+    setIngSearch("");
     setSaved(false);
+  }
+
+  async function createAndAddIngredient() {
+    if (!searchTrimmed) return;
+    setAddingIng(true);
+    const unit = ingUnit === "__custom__" ? ingCustomUnit.trim() : ingUnit;
+
+    // Final duplicate guard — re-check the live list
+    const duplicate = ingredients.find(
+      (ing) => ing.name.toLowerCase() === searchTrimmed
+    );
+    if (duplicate) {
+      addIngredientToRecipe(duplicate.id);
+      setAddingIng(false);
+      return;
+    }
+
+    const res = await fetch("/api/ingredients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: ingSearch.trim(), stock: 0, unit }),
+    });
+    const created = await res.json();
+    await fetchData(); // refresh ingredient list
+    addIngredientToRecipe(created.id);
+    setIngUnit("kg");
+    setIngCustomUnit("");
+    setAddingIng(false);
   }
 
   function updateAmount(ingredientId: string, value: string) {
@@ -112,6 +178,8 @@ export default function RecipeEditor() {
     setRecipeItems((prev) => prev.filter((ri) => ri.ingredientId !== ingredientId));
     setSaved(false);
   }
+
+  // ── Recipe save ───────────────────────────────────────────────
 
   async function saveRecipe() {
     if (!selectedProductId) return;
@@ -139,39 +207,35 @@ export default function RecipeEditor() {
     setParseResults(null);
   }
 
+  // ── PDF parsing ───────────────────────────────────────────────
+
   async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setParsing(true);
     setParseResults(null);
     setParseError(null);
 
     const form = new FormData();
     form.append("file", file);
-
     const res = await fetch("/api/recipes/parse", { method: "POST", body: form });
     const data = await res.json();
 
     if (!res.ok || data.error) {
       setParseError(data.error ?? "Failed to parse PDF.");
       setParsing(false);
-      // Reset the file input so the same file can be re-uploaded
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     const parsed: ParsedIngredient[] = data.ingredients ?? [];
-
-    // Match each parsed ingredient against existing ingredients by name
     const results: MatchResult[] = parsed.map((p) => {
       const match = ingredients.find(
         (ing) => ing.name.toLowerCase() === p.name.toLowerCase()
       );
-      if (match) {
-        return { status: "matched", ingredient: match, amount: p.amount };
-      }
-      return { status: "unmatched", name: p.name, amount: p.amount, unit: p.unit };
+      return match
+        ? { status: "matched", ingredient: match, amount: p.amount }
+        : { status: "unmatched", name: p.name, amount: p.amount, unit: p.unit };
     });
 
     setParseResults(results);
@@ -184,13 +248,12 @@ export default function RecipeEditor() {
     const matched = parseResults.filter(
       (r): r is Extract<MatchResult, { status: "matched" }> => r.status === "matched"
     );
-    // Merge with existing items — don't remove anything already there
     setRecipeItems((prev) => {
       const next = [...prev];
       for (const m of matched) {
-        const existing = next.findIndex((ri) => ri.ingredientId === m.ingredient.id);
-        if (existing >= 0) {
-          next[existing] = { ...next[existing], amount: m.amount };
+        const idx = next.findIndex((ri) => ri.ingredientId === m.ingredient.id);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], amount: m.amount };
         } else {
           next.push({ ingredientId: m.ingredient.id, amount: m.amount });
         }
@@ -201,9 +264,31 @@ export default function RecipeEditor() {
     setParseResults(null);
   }
 
-  const availableToAdd = ingredients.filter(
-    (ing) => !recipeItems.some((ri) => ri.ingredientId === ing.id)
-  );
+  async function addUnmatchedIngredient(index: number) {
+    if (!parseResults) return;
+    const result = parseResults[index];
+    if (result.status !== "unmatched") return;
+    setAddingUnmatchedIdx(index);
+    const res = await fetch("/api/ingredients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: result.name, stock: 0, unit: result.unit }),
+    });
+    const created = await res.json();
+    await fetchData();
+    setParseResults((prev) =>
+      prev
+        ? prev.map((r, i) =>
+            i === index
+              ? { status: "matched", ingredient: created, amount: result.amount }
+              : r
+          )
+        : prev
+    );
+    setAddingUnmatchedIdx(null);
+  }
+
+  // ── Render ────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
@@ -283,13 +368,11 @@ export default function RecipeEditor() {
 
         {selectedProductId && (
           <>
-            {/* PDF upload */}
+            {/* PDF import */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                  Import from PDF
-                </p>
-              </div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                Import from PDF
+              </p>
               <p className="text-sm text-gray-400 mb-3">
                 Upload a recipe PDF and AI will extract the ingredients automatically.
               </p>
@@ -308,12 +391,10 @@ export default function RecipeEditor() {
                 {parsing ? "Reading PDF…" : "Upload PDF"}
               </button>
 
-              {/* Parse error */}
               {parseError && (
                 <p className="mt-3 text-sm text-red-500 font-medium">{parseError}</p>
               )}
 
-              {/* Parse results preview */}
               {parseResults && (
                 <div className="mt-4">
                   <p className="text-sm font-semibold text-gray-700 mb-2">
@@ -325,17 +406,20 @@ export default function RecipeEditor() {
                         <li key={i} className="flex items-center gap-2 text-sm">
                           <span className="text-green-500 font-bold">✓</span>
                           <span className="font-medium text-gray-800">{r.ingredient.name}</span>
-                          <span className="text-gray-400">
-                            {r.amount} {r.ingredient.unit}
-                          </span>
+                          <span className="text-gray-400">{r.amount} {r.ingredient.unit}</span>
                         </li>
                       ) : (
                         <li key={i} className="flex items-center gap-2 text-sm">
-                          <span className="text-yellow-500 font-bold">!</span>
-                          <span className="font-medium text-gray-500 line-through">{r.name}</span>
-                          <span className="text-xs text-yellow-600 font-medium">
-                            not in your ingredients
-                          </span>
+                          <span className="text-yellow-500 font-bold shrink-0">!</span>
+                          <span className="font-medium text-gray-800 flex-1">{r.name}</span>
+                          <span className="text-gray-400 shrink-0">{r.amount} {r.unit}</span>
+                          <button
+                            onClick={() => addUnmatchedIngredient(i)}
+                            disabled={addingUnmatchedIdx === i}
+                            className="shrink-0 px-3 py-1 bg-yellow-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50 active:bg-yellow-600"
+                          >
+                            {addingUnmatchedIdx === i ? "Adding…" : "Add to inventory"}
+                          </button>
                         </li>
                       )
                     )}
@@ -346,7 +430,7 @@ export default function RecipeEditor() {
                       disabled={!parseResults.some((r) => r.status === "matched")}
                       className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-semibold text-sm disabled:opacity-40 active:bg-green-700"
                     >
-                      Apply matched ingredients
+                      Apply matched
                     </button>
                     <button
                       onClick={() => setParseResults(null)}
@@ -363,7 +447,7 @@ export default function RecipeEditor() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 mb-4">
               {recipeItems.length === 0 && (
                 <p className="text-center py-8 text-gray-400">
-                  No ingredients yet. Upload a PDF or add one below.
+                  No ingredients yet. Add one below.
                 </p>
               )}
               {recipeItems.map((ri) => {
@@ -397,27 +481,103 @@ export default function RecipeEditor() {
               })}
             </div>
 
-            {/* Add ingredient */}
-            {availableToAdd.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4">
-                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  Add ingredient
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {availableToAdd.map((ing) => (
+            {/* Add ingredient — search + create */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4">
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Add ingredient
+              </p>
+
+              <input
+                type="text"
+                placeholder="Search or type a new ingredient…"
+                value={ingSearch}
+                onChange={(e) => { setIngSearch(e.target.value); setSaved(false); }}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+              />
+
+              {/* Existing matches */}
+              {searchTrimmed && filteredIngredients.length > 0 && (
+                <div className="border border-gray-100 rounded-xl divide-y divide-gray-100 mb-3">
+                  {filteredIngredients.map((ing) => (
                     <button
                       key={ing.id}
-                      onClick={() => addIngredient(ing.id)}
+                      onClick={() => addIngredientToRecipe(ing.id)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      <span className="font-medium text-gray-800">{ing.name}</span>
+                      <span className="text-sm text-gray-400">{ing.unit}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Already on recipe notice */}
+              {exactMatch && alreadyOnRecipe && (
+                <p className="text-sm text-gray-400 mb-3">
+                  <span className="font-medium text-gray-600">{exactMatch.name}</span> is already in this recipe.
+                </p>
+              )}
+
+              {/* Create new option */}
+              {showCreateOption && (
+                <div className="border border-dashed border-gray-300 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">
+                    Create new ingredient: <span className="text-blue-600">{ingSearch.trim()}</span>
+                  </p>
+                  <div className="flex gap-3 mb-3">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-1">Unit</label>
+                      <select
+                        value={ingUnit}
+                        onChange={(e) => setIngUnit(e.target.value)}
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                      >
+                        {COMMON_UNITS.map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                        <option value="__custom__">Other…</option>
+                      </select>
+                    </div>
+                    {ingUnit === "__custom__" && (
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-400 mb-1">Custom unit</label>
+                        <input
+                          type="text"
+                          value={ingCustomUnit}
+                          onChange={(e) => setIngCustomUnit(e.target.value)}
+                          className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">Starts with 0 stock — update in Inventory when needed.</p>
+                  <button
+                    onClick={createAndAddIngredient}
+                    disabled={addingIng || (ingUnit === "__custom__" && !ingCustomUnit.trim())}
+                    className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-base disabled:opacity-50 active:bg-blue-700"
+                  >
+                    {addingIng ? "Adding…" : `Add "${ingSearch.trim()}"`}
+                  </button>
+                </div>
+              )}
+
+              {/* Pills for all available when no search */}
+              {!searchTrimmed && availableIngredients.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableIngredients.map((ing) => (
+                    <button
+                      key={ing.id}
+                      onClick={() => addIngredientToRecipe(ing.id)}
                       className="px-4 py-2 rounded-xl font-semibold text-base bg-gray-100 text-gray-700 border border-gray-200 active:bg-gray-200"
                     >
                       + {ing.name}
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Save button */}
+            {/* Save */}
             <button
               onClick={saveRecipe}
               disabled={saving}
