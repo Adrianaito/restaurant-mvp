@@ -17,11 +17,9 @@ export async function POST(
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.status === "paid") return NextResponse.json({ error: "Order is closed" }, { status: 400 });
 
-  // Deduct inventory immediately when order is already confirmed
-  if (order.status === "confirmed") {
-    const err = await adjustInventory(productId, quantity);
-    if (err) return NextResponse.json({ error: err }, { status: 422 });
-  }
+  // Always deduct inventory immediately when adding to an order
+  const err = await adjustInventory(productId, quantity);
+  if (err) return NextResponse.json({ error: err }, { status: 422 });
 
   const existing = await prisma.orderItem.findFirst({
     where: { orderId: id, productId },

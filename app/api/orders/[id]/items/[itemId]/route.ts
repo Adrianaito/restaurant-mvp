@@ -25,13 +25,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
   }
 
-  // Adjust inventory by the delta when order is confirmed
-  if (order.status === "confirmed") {
-    const delta = quantity - existing.quantity;
-    if (delta !== 0) {
-      const err = await adjustInventory(existing.productId, delta);
-      if (err) return NextResponse.json({ error: err }, { status: 422 });
-    }
+  // Always adjust inventory by the delta
+  const delta = quantity - existing.quantity;
+  if (delta !== 0) {
+    const err = await adjustInventory(existing.productId, delta);
+    if (err) return NextResponse.json({ error: err }, { status: 422 });
   }
 
   const updated = await prisma.orderItem.update({
@@ -72,10 +70,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
   }
 
-  // Return inventory when removing from a confirmed order
-  if (order.status === "confirmed") {
-    await adjustInventory(existing.productId, -existing.quantity);
-  }
+  // Always return inventory when removing an item
+  await adjustInventory(existing.productId, -existing.quantity);
 
   await prisma.orderItem.delete({ where: { id: itemId } });
 
