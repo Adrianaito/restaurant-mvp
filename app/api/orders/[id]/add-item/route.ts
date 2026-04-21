@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { adjustInventory } from "@/lib/inventory";
 
 export async function POST(
   req: Request,
@@ -13,16 +14,18 @@ export async function POST(
   }
 
   const order = await prisma.order.findUnique({ where: { id } });
-  if (!order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-  if (order.status !== "draft") {
-    return NextResponse.json({ error: "Order already confirmed" }, { status: 400 });
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  if (order.status === "paid") return NextResponse.json({ error: "Order is closed" }, { status: 400 });
+
+  // Deduct inventory immediately when order is already confirmed
+  if (order.status === "confirmed") {
+    const err = await adjustInventory(productId, quantity);
+    if (err) return NextResponse.json({ error: err }, { status: 422 });
   }
 
-  // Check if item already exists and increment quantity
   const existing = await prisma.orderItem.findFirst({
     where: { orderId: id, productId },
+    include: { product: true },
   });
 
   let item;
@@ -32,10 +35,30 @@ export async function POST(
       data: { quantity: existing.quantity + quantity },
       include: { product: true },
     });
+    await prisma.orderEditLog.create({
+      data: {
+        orderId: id,
+        action: "update_quantity",
+        productId,
+        productName: existing.product.name,
+        quantityBefore: existing.quantity,
+        quantityAfter: existing.quantity + quantity,
+      },
+    });
   } else {
     item = await prisma.orderItem.create({
       data: { orderId: id, productId, quantity },
       include: { product: true },
+    });
+    await prisma.orderEditLog.create({
+      data: {
+        orderId: id,
+        action: "add",
+        productId,
+        productName: item.product.name,
+        quantityBefore: null,
+        quantityAfter: quantity,
+      },
     });
   }
 

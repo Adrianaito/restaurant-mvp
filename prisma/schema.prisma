@@ -14,6 +14,7 @@ model Business {
   ingredients Ingredient[]
   orders      Order[]
   tables      Table[]
+  productions Production[]
 }
 
 model Table {
@@ -30,6 +31,7 @@ model Product {
   business    Business     @relation(fields: [businessId], references: [id])
   recipeItems RecipeItem[]
   orderItems  OrderItem[]
+  productions Production[]
 }
 
 model Ingredient {
@@ -52,13 +54,27 @@ model RecipeItem {
 }
 
 model Order {
-  id         String      @id @default(cuid())
+  id         String         @id @default(cuid())
   businessId String
   label      String
-  status     String      @default("draft")
-  createdAt  DateTime    @default(now())
-  business   Business    @relation(fields: [businessId], references: [id])
+  status     String         @default("draft")
+  createdAt  DateTime       @default(now())
+  paidAt     DateTime?
+  business   Business       @relation(fields: [businessId], references: [id])
   items      OrderItem[]
+  editLogs   OrderEditLog[]
+}
+
+model OrderEditLog {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id])
+  action         String
+  productId      String
+  productName    String
+  quantityBefore Int?
+  quantityAfter  Int?
+  createdAt      DateTime @default(now())
 }
 
 model OrderItem {
@@ -68,4 +84,15 @@ model OrderItem {
   quantity  Int
   order     Order   @relation(fields: [orderId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
+}
+
+model Production {
+  id           String   @id @default(cuid())
+  productId    String
+  portionsMade Int
+  soldCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id])
 }
