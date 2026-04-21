@@ -1,0 +1,1 @@
+ALTER TABLE "Product" ADD COLUMN "portionsPerUnit" INTEGER NOT NULL DEFAULT 1;

@@ -13,9 +13,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { productId, portions } = await request.json();
-  if (!productId || !portions || portions < 1) {
-    return Response.json({ error: "productId and portions are required" }, { status: 400 });
+  const { productId, units } = await request.json();
+  if (!productId || !units || units < 1) {
+    return Response.json({ error: "productId and units are required" }, { status: 400 });
   }
 
   const product = await prisma.product.findUnique({
@@ -30,10 +30,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Product has no recipe" }, { status: 422 });
   }
 
+  const portionsMade = units * product.portionsPerUnit;
+
   // Check every ingredient has enough stock
   const shortfalls: string[] = [];
   for (const ri of product.recipeItems) {
-    const required = ri.amount * portions;
+    const required = ri.amount * units;
     if (ri.ingredient.stock < required) {
       shortfalls.push(
         `${ri.ingredient.name}: need ${required} ${ri.ingredient.unit}, have ${ri.ingredient.stock}`
@@ -49,11 +51,11 @@ export async function POST(request: NextRequest) {
     ...product.recipeItems.map((ri) =>
       prisma.ingredient.update({
         where: { id: ri.ingredientId },
-        data: { stock: { decrement: ri.amount * portions } },
+        data: { stock: { decrement: ri.amount * units } },
       })
     ),
     prisma.production.create({
-      data: { productId, portionsMade: portions, businessId: BUSINESS_ID },
+      data: { productId, portionsMade, businessId: BUSINESS_ID },
     }),
   ]);
 

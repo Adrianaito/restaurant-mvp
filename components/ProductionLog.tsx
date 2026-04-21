@@ -6,6 +6,7 @@ import Link from "next/link";
 type Product = {
   id: string;
   name: string;
+  portionsPerUnit: number;
   recipeItems: {
     ingredientId: string;
     amount: number;
@@ -35,7 +36,7 @@ export default function ProductionLog() {
   const [productions, setProductions] = useState<Production[]>([]);
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [portions, setPortions] = useState("1");
+  const [units, setUnits] = useState("1");
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
   const [shortfalls, setShortfalls] = useState<string[]>([]);
@@ -54,12 +55,13 @@ export default function ProductionLog() {
   }, []);
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) ?? null;
-  const portionsNum = parseInt(portions, 10) || 0;
+  const unitsNum = parseInt(units, 10) || 0;
+  const totalPortions = selectedProduct ? unitsNum * selectedProduct.portionsPerUnit : 0;
 
   const preview: PreviewLine[] =
-    selectedProduct && portionsNum > 0
+    selectedProduct && unitsNum > 0
       ? selectedProduct.recipeItems.map((ri) => {
-          const required = ri.amount * portionsNum;
+          const required = ri.amount * unitsNum;
           return {
             name: ri.ingredient.name,
             unit: ri.ingredient.unit,
@@ -72,7 +74,7 @@ export default function ProductionLog() {
 
   const canLog =
     selectedProduct &&
-    portionsNum > 0 &&
+    unitsNum > 0 &&
     selectedProduct.recipeItems.length > 0 &&
     preview.every((l) => l.ok);
 
@@ -85,7 +87,7 @@ export default function ProductionLog() {
     const res = await fetch("/api/productions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: selectedProductId, portions: portionsNum }),
+      body: JSON.stringify({ productId: selectedProductId, units: unitsNum }),
     });
     const data = await res.json();
 
@@ -96,7 +98,7 @@ export default function ProductionLog() {
       return;
     }
 
-    setPortions("1");
+    setUnits("1");
     setLogging(false);
     fetchData();
   }
@@ -160,21 +162,33 @@ export default function ProductionLog() {
 
           {selectedProduct && (
             <>
-              {/* Portions input */}
-              <div className="mb-4">
-                <label className="block text-xs text-gray-400 mb-1">Portions to make</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={portions}
-                  onChange={(e) => {
-                    setPortions(e.target.value);
-                    setLogError(null);
-                    setShortfalls([]);
-                  }}
-                  className="w-32 border border-gray-300 rounded-xl px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
+              {/* Units input */}
+              <div className="flex items-end gap-4 mb-4">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Units made
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={units}
+                    onChange={(e) => {
+                      setUnits(e.target.value);
+                      setLogError(null);
+                      setShortfalls([]);
+                    }}
+                    className="w-28 border border-gray-300 rounded-xl px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                {selectedProduct.portionsPerUnit > 1 && (
+                  <p className="pb-2.5 text-sm text-gray-500">
+                    → <span className="font-semibold text-gray-800">{totalPortions}</span> portions
+                    <span className="text-gray-400 ml-1">
+                      ({unitsNum} × {selectedProduct.portionsPerUnit})
+                    </span>
+                  </p>
+                )}
               </div>
 
               {/* Ingredient preview */}
@@ -248,7 +262,7 @@ export default function ProductionLog() {
               >
                 {logging
                   ? "Logging…"
-                  : `Log ${portionsNum} portion${portionsNum !== 1 ? "s" : ""} of ${selectedProduct.name}`}
+                  : `Log ${unitsNum} ${unitsNum !== 1 ? "units" : "unit"} of ${selectedProduct.name} (${totalPortions} portions)`}
               </button>
             </>
           )}

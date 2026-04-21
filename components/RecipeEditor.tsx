@@ -8,6 +8,7 @@ type RecipeItem = { ingredientId: string; amount: number };
 type Product = {
   id: string;
   name: string;
+  portionsPerUnit: number;
   recipeItems: {
     ingredientId: string;
     amount: number;
@@ -27,6 +28,7 @@ export default function RecipeEditor() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
+  const [portionsPerUnit, setPortionsPerUnit] = useState(1);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -95,6 +97,7 @@ export default function RecipeEditor() {
     setParseError(null);
     setIngSearch("");
     const product = products.find((p) => p.id === productId);
+    setPortionsPerUnit(product?.portionsPerUnit ?? 1);
     setRecipeItems(
       product
         ? product.recipeItems.map((ri) => ({
@@ -187,7 +190,7 @@ export default function RecipeEditor() {
     await fetch("/api/recipes", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: selectedProductId, items: recipeItems }),
+      body: JSON.stringify({ productId: selectedProductId, items: recipeItems, portionsPerUnit }),
     });
     setProducts((prev) =>
       prev.map((p) =>
@@ -441,6 +444,27 @@ export default function RecipeEditor() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Portions per unit */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Portions per unit</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  How many portions does 1 unit yield? (e.g. 1 lasagna = 10 cuts)
+                </p>
+              </div>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={portionsPerUnit}
+                onChange={(e) => {
+                  setPortionsPerUnit(Math.max(1, parseInt(e.target.value) || 1));
+                  setSaved(false);
+                }}
+                className="w-20 border border-gray-300 rounded-xl px-3 py-2 text-base text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
             </div>
 
             {/* Current recipe items */}
