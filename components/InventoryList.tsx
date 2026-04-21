@@ -4,12 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Ingredient = { id: string; name: string; stock: number; unit: string };
+type Production = {
+  productId: string;
+  portionsMade: number;
+  soldCount: number;
+  product: { name: string };
+};
+type BatchStock = { productId: string; name: string; available: number };
 
 const LOW_STOCK_THRESHOLD = 1;
 const COMMON_UNITS = ["kg", "g", "L", "ml", "unit", "cup", "tbsp", "tsp"];
 
 export default function InventoryList() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [batchStock, setBatchStock] = useState<BatchStock[]>([]);
 
   // Add form
   const [showAdd, setShowAdd] = useState(false);
@@ -28,7 +36,29 @@ export default function InventoryList() {
     setIngredients(await res.json());
   }
 
-  useEffect(() => { fetchIngredients(); }, []);
+  async function fetchBatchStock() {
+    const res = await fetch("/api/productions");
+    const productions: Production[] = await res.json();
+    const map = new Map<string, BatchStock>();
+    for (const p of productions) {
+      const existing = map.get(p.productId);
+      if (existing) {
+        existing.available += p.portionsMade - p.soldCount;
+      } else {
+        map.set(p.productId, {
+          productId: p.productId,
+          name: p.product.name,
+          available: p.portionsMade - p.soldCount,
+        });
+      }
+    }
+    setBatchStock(Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name)));
+  }
+
+  useEffect(() => {
+    fetchIngredients();
+    fetchBatchStock();
+  }, []);
 
   async function addIngredient() {
     const unit = newUnit === "__custom__" ? customUnit.trim() : newUnit;
@@ -165,6 +195,37 @@ export default function InventoryList() {
             </div>
           )}
         </div>
+
+        {/* Batch stock */}
+        {batchStock.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 mb-4 sm:mb-6">
+            <div className="px-4 sm:px-5 py-3">
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Batch stock</p>
+            </div>
+            {batchStock.map((b) => {
+              const isOut = b.available <= 0;
+              const isLow = !isOut && b.available <= 3;
+              return (
+                <div key={b.productId} className={`px-4 sm:px-5 py-4 flex items-center justify-between gap-3 ${isOut ? "bg-red-50" : ""}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isOut && <span className="text-red-500 text-lg shrink-0">⚠</span>}
+                    <span className={`text-lg sm:text-xl font-medium truncate ${isOut ? "text-red-700" : "text-gray-800"}`}>
+                      {b.name}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`text-xl sm:text-2xl font-bold ${isOut ? "text-red-600" : isLow ? "text-yellow-600" : "text-gray-900"}`}>
+                      {b.available}
+                    </span>
+                    <span className="text-gray-400 text-sm ml-1">portions</span>
+                    {isOut && <p className="text-red-500 text-xs font-semibold mt-0.5">SOLD OUT</p>}
+                    {isLow && <p className="text-yellow-600 text-xs font-semibold mt-0.5">LOW</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Ingredient list */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100">
