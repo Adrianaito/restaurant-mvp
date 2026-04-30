@@ -23,6 +23,19 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(product, { status: 201 });
 }
 
+export async function PATCH(request: NextRequest) {
+  const { id, lowPortionsThreshold } = await request.json();
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+  const parsed = parseFloat(lowPortionsThreshold);
+  const product = await prisma.product.update({
+    where: { id },
+    data: { lowPortionsThreshold: isNaN(parsed) ? null : Math.floor(parsed) },
+  });
+  return NextResponse.json(product);
+}
+
 export async function DELETE(request: NextRequest) {
   const { id } = await request.json();
   if (!id) {

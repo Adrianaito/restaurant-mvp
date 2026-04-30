@@ -25,10 +25,11 @@ model Table {
 }
 
 model Product {
-  id              String       @id @default(cuid())
-  name            String
-  businessId      String
-  portionsPerUnit Int          @default(1)
+  id                   String       @id @default(cuid())
+  name                 String
+  businessId           String
+  portionsPerUnit      Int          @default(1)
+  lowPortionsThreshold Int?
   business        Business     @relation(fields: [businessId], references: [id])
   recipeItems     RecipeItem[]
   orderItems      OrderItem[]
@@ -36,13 +37,14 @@ model Product {
 }
 
 model Ingredient {
-  id          String       @id @default(cuid())
-  name        String
-  stock       Float
-  unit        String
-  businessId  String
-  business    Business     @relation(fields: [businessId], references: [id])
-  recipeItems RecipeItem[]
+  id                String       @id @default(cuid())
+  name              String
+  stock             Float
+  unit              String
+  lowStockThreshold Float?
+  businessId        String
+  business          Business     @relation(fields: [businessId], references: [id])
+  recipeItems       RecipeItem[]
 }
 
 model RecipeItem {

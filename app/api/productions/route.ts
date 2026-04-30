@@ -6,7 +6,7 @@ const BUSINESS_ID = "business-1";
 export async function GET() {
   const productions = await prisma.production.findMany({
     where: { businessId: BUSINESS_ID },
-    include: { product: { select: { name: true } } },
+    include: { product: { select: { name: true, lowPortionsThreshold: true } } },
     orderBy: { createdAt: "desc" },
   });
   return Response.json(productions);
