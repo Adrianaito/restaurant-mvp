@@ -94,8 +94,15 @@ export default function OrderList() {
                 <div className="fixed inset-0 z-10" onClick={() => setShowSettings(false)} />
                 <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-lg border border-gray-100 z-20 overflow-hidden">
                   <Link
-                    href="/tables"
+                    href="/dashboard"
                     className="block px-5 py-4 text-lg font-semibold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                    onClick={() => setShowSettings(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/tables"
+                    className="block px-5 py-4 text-lg font-semibold text-gray-700 hover:bg-gray-50 active:bg-gray-100 border-t border-gray-100"
                     onClick={() => setShowSettings(false)}
                   >
                     Tables

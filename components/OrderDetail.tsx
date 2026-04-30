@@ -7,7 +7,7 @@ import ProductGrid from "./ProductGrid";
 type OrderItem = {
   id: string;
   quantity: number;
-  product: { id: string; name: string };
+  product: { id: string; name: string; price: number };
 };
 
 type Order = {
@@ -270,9 +270,16 @@ export default function OrderDetail({ orderId }: Props) {
             <ul className="divide-y divide-gray-100">
               {order.items.map((item) => (
                 <li key={item.id} className="flex items-center justify-between py-3 gap-3">
-                  <span className="text-base sm:text-lg font-medium text-gray-800 flex-1">
-                    {item.product.name}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-base sm:text-lg font-medium text-gray-800 block truncate">
+                      {item.product.name}
+                    </span>
+                    {item.product.price > 0 && (
+                      <span className="text-sm text-gray-400">
+                        {item.product.price.toFixed(2)} × {item.quantity} = {(item.product.price * item.quantity).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
                   {!isPaid ? (
                     <div className="flex items-center gap-2 shrink-0">
                       <button
@@ -310,6 +317,16 @@ export default function OrderDetail({ orderId }: Props) {
                 </li>
               ))}
             </ul>
+          )}
+          {order.items.length > 0 && order.items.some((i) => i.product.price > 0) && (
+            <div className="flex justify-between items-center pt-3 mt-2 border-t border-gray-100">
+              <span className="font-semibold text-gray-600">Total</span>
+              <span className="text-xl font-bold text-gray-900">
+                {order.items
+                  .reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+                  .toFixed(2)}
+              </span>
+            </div>
           )}
         </div>
 

@@ -13,26 +13,31 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { name } = await request.json();
+  const { name, price } = await request.json();
   if (!name?.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
   const product = await prisma.product.create({
-    data: { name: name.trim(), businessId: BUSINESS_ID },
+    data: { name: name.trim(), businessId: BUSINESS_ID, price: parseFloat(price) || 0 },
   });
   return NextResponse.json(product, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
-  const { id, lowPortionsThreshold } = await request.json();
+  const { id, lowPortionsThreshold, price } = await request.json();
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
-  const parsed = parseFloat(lowPortionsThreshold);
-  const product = await prisma.product.update({
-    where: { id },
-    data: { lowPortionsThreshold: isNaN(parsed) ? null : Math.floor(parsed) },
-  });
+  const data: Record<string, unknown> = {};
+  if (lowPortionsThreshold !== undefined) {
+    const parsed = parseFloat(lowPortionsThreshold);
+    data.lowPortionsThreshold = isNaN(parsed) ? null : Math.floor(parsed);
+  }
+  if (price !== undefined) {
+    const parsedPrice = parseFloat(price);
+    data.price = isNaN(parsedPrice) ? 0 : parsedPrice;
+  }
+  const product = await prisma.product.update({ where: { id }, data });
   return NextResponse.json(product);
 }
 
