@@ -13,18 +13,18 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { name, price } = await request.json();
+  const { name, price, vatRate } = await request.json();
   if (!name?.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
   const product = await prisma.product.create({
-    data: { name: name.trim(), businessId: BUSINESS_ID, price: parseFloat(price) || 0 },
+    data: { name: name.trim(), businessId: BUSINESS_ID, price: parseFloat(price) || 0, vatRate: parseFloat(vatRate) || 10 },
   });
   return NextResponse.json(product, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
-  const { id, lowPortionsThreshold, price } = await request.json();
+  const { id, lowPortionsThreshold, price, vatRate } = await request.json();
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
@@ -36,6 +36,10 @@ export async function PATCH(request: NextRequest) {
   if (price !== undefined) {
     const parsedPrice = parseFloat(price);
     data.price = isNaN(parsedPrice) ? 0 : parsedPrice;
+  }
+  if (vatRate !== undefined) {
+    const parsedVat = parseFloat(vatRate);
+    data.vatRate = isNaN(parsedVat) ? 10 : parsedVat;
   }
   const product = await prisma.product.update({ where: { id }, data });
   return NextResponse.json(product);

@@ -7,7 +7,7 @@ import ProductGrid from "./ProductGrid";
 type OrderItem = {
   id: string;
   quantity: number;
-  product: { id: string; name: string; price: number };
+  product: { id: string; name: string; price: number; vatRate: number };
 };
 
 type Order = {
@@ -318,16 +318,35 @@ export default function OrderDetail({ orderId }: Props) {
               ))}
             </ul>
           )}
-          {order.items.length > 0 && order.items.some((i) => i.product.price > 0) && (
-            <div className="flex justify-between items-center pt-3 mt-2 border-t border-gray-100">
-              <span className="font-semibold text-gray-600">Total</span>
-              <span className="text-xl font-bold text-gray-900">
-                {order.items
-                  .reduce((sum, i) => sum + i.product.price * i.quantity, 0)
-                  .toFixed(2)}
-              </span>
-            </div>
-          )}
+          {order.items.length > 0 && order.items.some((i) => i.product.price > 0) && (() => {
+            const total = order.items.reduce((s, i) => s + i.product.price * i.quantity, 0);
+            // Group IVA by rate
+            const ivaByRate = new Map<number, number>();
+            for (const i of order.items) {
+              const lineTotal = i.product.price * i.quantity;
+              const iva = lineTotal - lineTotal / (1 + i.product.vatRate / 100);
+              ivaByRate.set(i.product.vatRate, (ivaByRate.get(i.product.vatRate) ?? 0) + iva);
+            }
+            const base = total - Array.from(ivaByRate.values()).reduce((s, v) => s + v, 0);
+            return (
+              <div className="pt-3 mt-2 border-t border-gray-100 space-y-1">
+                <div className="flex justify-between text-sm text-gray-400">
+                  <span>Base imponible</span>
+                  <span>{base.toFixed(2)} €</span>
+                </div>
+                {Array.from(ivaByRate.entries()).sort(([a], [b]) => a - b).map(([rate, iva]) => (
+                  <div key={rate} className="flex justify-between text-sm text-gray-400">
+                    <span>IVA {rate}%</span>
+                    <span>{iva.toFixed(2)} €</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-1 border-t border-gray-100">
+                  <span className="font-semibold text-gray-700">Total</span>
+                  <span className="text-xl font-bold text-gray-900">{total.toFixed(2)} €</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {!isPaid && <ProductGrid products={products} onAdd={addItem} />}

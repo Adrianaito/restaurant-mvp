@@ -29,6 +29,7 @@ model Product {
   name                 String
   businessId           String
   price                Float        @default(0)
+  vatRate              Float        @default(10)
   portionsPerUnit      Int          @default(1)
   lowPortionsThreshold Int?
   business        Business     @relation(fields: [businessId], references: [id])

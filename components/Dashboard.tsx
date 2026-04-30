@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type OrderItem = { name: string; quantity: number; price: number };
+type OrderItem = { name: string; quantity: number; price: number; vatRate: number };
+type VatBreakdown = { ivaByRate: Record<string, number>; totalIva: number };
 
 type ActiveOrder = {
   id: string;
@@ -20,6 +21,7 @@ type PaidOrder = {
   label: string;
   paidAt: string;
   total: number;
+  vat: VatBreakdown;
   items: OrderItem[];
 };
 
@@ -28,6 +30,7 @@ type DashboardData = {
   totalRevenue: number;
   todayOrderCount: number;
   totalOrderCount: number;
+  todayVat: VatBreakdown;
   activeOrders: ActiveOrder[];
   paidOrders: PaidOrder[];
 };
@@ -75,12 +78,20 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Today's revenue</p>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{fmt(data.todayRevenue)}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{fmt(data.todayRevenue)} €</p>
             <p className="text-sm text-gray-400 mt-1">{data.todayOrderCount} order{data.todayOrderCount !== 1 ? "s" : ""} closed</p>
+            {data.todayVat.totalIva > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5">
+                <p className="text-xs text-gray-400">Base: {fmt(data.todayRevenue - data.todayVat.totalIva)} €</p>
+                {Object.entries(data.todayVat.ivaByRate).sort().map(([rate, iva]) => (
+                  <p key={rate} className="text-xs text-gray-400">IVA {rate}%: {fmt(iva)} €</p>
+                ))}
+              </div>
+            )}
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">All-time revenue</p>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{fmt(data.totalRevenue)}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{fmt(data.totalRevenue)} €</p>
             <p className="text-sm text-gray-400 mt-1">{data.totalOrderCount} order{data.totalOrderCount !== 1 ? "s" : ""} total</p>
           </div>
         </div>
@@ -165,9 +176,23 @@ export default function Dashboard() {
                       {order.items.map((item, i) => (
                         <div key={i} className="flex items-center justify-between text-sm text-gray-600">
                           <span>{item.quantity}× {item.name}</span>
-                          <span className="text-gray-500">{fmt(item.quantity * item.price)}</span>
+                          <span className="text-gray-500">{fmt(item.quantity * item.price)} €</span>
                         </div>
                       ))}
+                      {order.vat.totalIva > 0 && (
+                        <div className="pt-2 border-t border-gray-100 space-y-0.5">
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>Base imponible</span>
+                            <span>{fmt(order.total - order.vat.totalIva)} €</span>
+                          </div>
+                          {Object.entries(order.vat.ivaByRate).sort().map(([rate, iva]) => (
+                            <div key={rate} className="flex justify-between text-xs text-gray-400">
+                              <span>IVA {rate}%</span>
+                              <span>{fmt(iva)} €</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
