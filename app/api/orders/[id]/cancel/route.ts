@@ -17,9 +17,11 @@ export async function POST(
   if (order.status === "paid") return NextResponse.json({ error: "Order already paid" }, { status: 400 });
   if (order.status === "cancelled") return NextResponse.json({ error: "Order already cancelled" }, { status: 400 });
 
-  // Always return inventory for all items when cancelling
-  for (const item of order.items) {
-    await adjustInventory(item.productId, -item.quantity);
+  // Return inventory only if order was already confirmed
+  if (order.status === "confirmed") {
+    for (const item of order.items) {
+      await adjustInventory(item.productId, -item.quantity);
+    }
   }
 
   const cancelled = await prisma.order.update({

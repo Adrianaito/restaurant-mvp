@@ -32,7 +32,10 @@ type Props = { orderId: string };
 
 function formatAction(log: EditLog): string {
   if (log.action === "add") return `Added ${log.productName} ×${log.quantityAfter}`;
-  if (log.action === "remove") return `Removed ${log.productName} (was ×${log.quantityBefore})`;
+  if (log.action === "remove") return `Removed ${log.productName} (×${log.quantityBefore})`;
+  if (log.action === "remove_return") return `Removed ${log.productName} — returned to inventory (×${log.quantityBefore})`;
+  if (log.action === "remove_defect") return `Removed ${log.productName} — defect/waste (×${log.quantityBefore})`;
+  if (log.action === "remove_comp") return `Removed ${log.productName} — complimentary (×${log.quantityBefore})`;
   if (log.action === "update_quantity")
     return `${log.productName}: ${log.quantityBefore} → ${log.quantityAfter}`;
   return log.action;
@@ -42,9 +45,16 @@ export default function OrderDetail({ orderId }: Props) {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [removeModal, setRemoveModal] = useState<{
+    itemId: string;
+    productName: string;
+    currentQuantity: number;
+    fullRemove: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<EditLog[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -103,11 +113,51 @@ export default function OrderDetail({ orderId }: Props) {
     fetchHistory();
   }
 
-  async function removeItem(itemId: string) {
+  async function removeItem(itemId: string, reason: string) {
     setError(null);
-    await fetch(`/api/orders/${orderId}/items/${itemId}`, { method: "DELETE" });
+    setRemoveModal(null);
+    await fetch(`/api/orders/${orderId}/items/${itemId}?reason=${reason}`, { method: "DELETE" });
     fetchOrder();
     fetchHistory();
+  }
+
+  async function decrementItem(itemId: string, newQuantity: number, reason: string) {
+    setError(null);
+    setRemoveModal(null);
+    const res = await fetch(`/api/orders/${orderId}/items/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: newQuantity, reason }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error);
+    }
+    fetchOrder();
+    fetchHistory();
+  }
+
+  function handleModalAction(reason: string) {
+    if (!removeModal) return;
+    if (removeModal.fullRemove || !order || order.status === "draft") {
+      removeItem(removeModal.itemId, reason);
+    } else {
+      decrementItem(removeModal.itemId, removeModal.currentQuantity - 1, reason);
+    }
+  }
+
+  async function confirmOrder() {
+    if (!order || order.items.length === 0) return;
+    setError(null);
+    setConfirming(true);
+    const res = await fetch(`/api/orders/${orderId}/confirm`, { method: "POST" });
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error);
+    } else {
+      fetchOrder();
+    }
+    setConfirming(false);
   }
 
   async function cancelOrder() {
@@ -159,7 +209,14 @@ export default function OrderDetail({ orderId }: Props) {
             >
               ←
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{order.label}</h1>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{order.label}</h1>
+              {!isPaid && (
+                <span className={`text-sm font-semibold ${order.status === "confirmed" ? "text-green-600" : "text-yellow-600"}`}>
+                  {order.status === "confirmed" ? "Confirmed" : "Draft"}
+                </span>
+              )}
+            </div>
           </div>
 
           {!isPaid && (
@@ -169,15 +226,26 @@ export default function OrderDetail({ orderId }: Props) {
                 disabled={cancelling}
                 className="px-3 py-2 sm:px-4 sm:py-3 bg-gray-100 text-gray-500 rounded-xl font-semibold text-sm sm:text-base disabled:opacity-50 active:bg-gray-200"
               >
-                {cancelling ? "…" : "Cancel order"}
+                {cancelling ? "…" : "Cancel"}
               </button>
-              <button
-                onClick={payOrder}
-                disabled={paying || order.items.length === 0}
-                className="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-xl font-bold text-sm sm:text-lg disabled:opacity-50 active:bg-green-700"
-              >
-                {paying ? "…" : "Pay & Close"}
-              </button>
+              {order.status === "draft" && (
+                <button
+                  onClick={confirmOrder}
+                  disabled={confirming || order.items.length === 0}
+                  className="px-4 py-2 sm:px-5 sm:py-3 bg-blue-600 text-white rounded-xl font-bold text-sm sm:text-lg disabled:opacity-50 active:bg-blue-700"
+                >
+                  {confirming ? "…" : "Confirm"}
+                </button>
+              )}
+              {order.status === "confirmed" && (
+                <button
+                  onClick={payOrder}
+                  disabled={paying}
+                  className="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-xl font-bold text-sm sm:text-lg disabled:opacity-50 active:bg-green-700"
+                >
+                  {paying ? "…" : "Pay & Close"}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -208,9 +276,12 @@ export default function OrderDetail({ orderId }: Props) {
                   {!isPaid ? (
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
-                        className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200 disabled:opacity-30"
+                        onClick={() =>
+                          order.status === "confirmed" || item.quantity === 1
+                            ? setRemoveModal({ itemId: item.id, productName: item.product.name, currentQuantity: item.quantity, fullRemove: item.quantity === 1 })
+                            : updateQuantity(item.id, item.quantity - 1)
+                        }
+                        className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
                       >
                         −
                       </button>
@@ -224,7 +295,7 @@ export default function OrderDetail({ orderId }: Props) {
                         +
                       </button>
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => setRemoveModal({ itemId: item.id, productName: item.product.name, currentQuantity: item.quantity, fullRemove: true })}
                         className="ml-1 w-8 h-8 rounded-full bg-red-50 text-red-500 font-bold flex items-center justify-center active:bg-red-100"
                         title="Remove item"
                       >
@@ -280,6 +351,72 @@ export default function OrderDetail({ orderId }: Props) {
           </div>
         )}
       </div>
+
+      {/* Remove item modal */}
+      {removeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setRemoveModal(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">
+              {order.status === "confirmed" && !removeModal.fullRemove
+                ? `Remove 1× ${removeModal.productName}?`
+                : `Remove ${removeModal.productName}?`}
+            </h2>
+            {order.status === "confirmed" ? (
+              <>
+                <p className="text-gray-500 text-sm mb-5">Choose how to handle this item:</p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => handleModalAction("return")}
+                    className="w-full py-3 rounded-xl bg-blue-50 text-blue-700 font-semibold active:bg-blue-100 text-left px-4"
+                  >
+                    Return to inventory
+                    <span className="block text-xs font-normal text-blue-400">Item was not used — stock restored</span>
+                  </button>
+                  <button
+                    onClick={() => handleModalAction("defect")}
+                    className="w-full py-3 rounded-xl bg-orange-50 text-orange-700 font-semibold active:bg-orange-100 text-left px-4"
+                  >
+                    Defect / Waste
+                    <span className="block text-xs font-normal text-orange-400">Item was wasted or defective</span>
+                  </button>
+                  <button
+                    onClick={() => handleModalAction("comp")}
+                    className="w-full py-3 rounded-xl bg-purple-50 text-purple-700 font-semibold active:bg-purple-100 text-left px-4"
+                  >
+                    Complimentary
+                    <span className="block text-xs font-normal text-purple-400">Given to client at no charge</span>
+                  </button>
+                  <button
+                    onClick={() => setRemoveModal(null)}
+                    className="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold active:bg-gray-200"
+                  >
+                    Keep it
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-500 text-sm mb-6">This item will be removed from the order.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setRemoveModal(null)}
+                    className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold active:bg-gray-200"
+                  >
+                    Keep it
+                  </button>
+                  <button
+                    onClick={() => handleModalAction("return")}
+                    className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold active:bg-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Cancel confirmation modal */}
       {showCancelModal && (

@@ -150,7 +150,9 @@ export default function OrderList() {
                   disabled={isLoading}
                   className={`rounded-2xl p-4 text-left border-2 transition-colors active:scale-95 disabled:opacity-60 ${
                     isOccupied
-                      ? "bg-yellow-50 border-yellow-300"
+                      ? active?.status === "confirmed"
+                        ? "bg-green-50 border-green-300"
+                        : "bg-yellow-50 border-yellow-300"
                       : "bg-white border-gray-200 active:bg-gray-50"
                   }`}
                 >
@@ -159,8 +161,12 @@ export default function OrderList() {
                   </p>
                   {isOccupied && active ? (
                     <>
-                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                        Occupied
+                      <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        active.status === "confirmed"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {active.status === "confirmed" ? "Confirmed" : "Draft"}
                       </span>
                       <p className="text-sm text-gray-500 mt-1">
                         {active.items.length} item{active.items.length !== 1 ? "s" : ""}

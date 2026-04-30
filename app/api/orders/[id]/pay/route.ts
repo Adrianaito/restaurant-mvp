@@ -14,6 +14,7 @@ export async function POST(
 
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.status === "paid") return NextResponse.json({ error: "Order already paid" }, { status: 400 });
+  if (order.status === "draft") return NextResponse.json({ error: "Order must be confirmed before payment" }, { status: 400 });
   if (order.items.length === 0) return NextResponse.json({ error: "Order has no items" }, { status: 400 });
 
   const paid = await prisma.order.update({

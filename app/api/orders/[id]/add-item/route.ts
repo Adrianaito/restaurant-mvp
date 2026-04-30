@@ -13,13 +13,21 @@ export async function POST(
     return NextResponse.json({ error: "productId is required" }, { status: 400 });
   }
 
-  const order = await prisma.order.findUnique({ where: { id } });
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { items: true },
+  });
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.status === "paid") return NextResponse.json({ error: "Order is closed" }, { status: 400 });
 
-  // Always deduct inventory immediately when adding to an order
-  const err = await adjustInventory(productId, quantity);
-  if (err) return NextResponse.json({ error: err }, { status: 422 });
+  // Adding to a confirmed order returns all inventory and reverts to draft,
+  // so the waiter must confirm again (deducting everything fresh).
+  if (order.status === "confirmed") {
+    for (const item of order.items) {
+      await adjustInventory(item.productId, -item.quantity);
+    }
+    await prisma.order.update({ where: { id }, data: { status: "draft" } });
+  }
 
   const existing = await prisma.orderItem.findFirst({
     where: { orderId: id, productId },
