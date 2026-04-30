@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Business {
-  id          String       @id @default(cuid())
-  name        String
-  products    Product[]
-  ingredients Ingredient[]
-  orders      Order[]
-  tables      Table[]
-  productions Production[]
+  id                String       @id @default(cuid())
+  name              String
+  logRetentionDays  Int?         @default(30)
+  products          Product[]
+  ingredients       Ingredient[]
+  orders            Order[]
+  tables            Table[]
+  productions       Production[]
 }
 
 model Table {

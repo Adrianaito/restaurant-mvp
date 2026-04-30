@@ -1,0 +1,1 @@
+ALTER TABLE "Business" ADD COLUMN "logRetentionDays" INTEGER DEFAULT 30;
