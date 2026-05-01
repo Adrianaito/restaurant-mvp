@@ -189,31 +189,35 @@ export default function OrderDetail({ orderId }: Props) {
 
   if (!order) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400 text-xl">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center text-slate-400">
+        Loading…
       </div>
     );
   }
 
   const isPaid = order.status === "paid";
+  const isConfirmed = order.status === "confirmed";
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 sm:py-4 shadow-sm">
+      <div className="bg-white border-b border-slate-200 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => router.push("/")}
-              className="shrink-0 text-blue-600 font-semibold text-base sm:text-lg px-1 py-1"
+              className="shrink-0 p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              aria-label="Back"
             >
-              ←
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{order.label}</h1>
+              <h1 className="text-lg font-semibold text-slate-900 truncate">{order.label}</h1>
               {!isPaid && (
-                <span className={`text-sm font-semibold ${order.status === "confirmed" ? "text-green-600" : "text-yellow-600"}`}>
-                  {order.status === "confirmed" ? "Confirmed" : "Draft"}
+                <span className={`text-xs font-medium ${isConfirmed ? "text-emerald-600" : "text-amber-600"}`}>
+                  {isConfirmed ? "Confirmed" : "Draft"}
                 </span>
               )}
             </div>
@@ -224,7 +228,7 @@ export default function OrderDetail({ orderId }: Props) {
               <button
                 onClick={() => setShowCancelModal(true)}
                 disabled={cancelling}
-                className="px-3 py-2 sm:px-4 sm:py-3 bg-gray-100 text-gray-500 rounded-xl font-semibold text-sm sm:text-base disabled:opacity-50 active:bg-gray-200"
+                className="px-3 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg active:bg-slate-200 disabled:opacity-50 transition-colors"
               >
                 {cancelling ? "…" : "Cancel"}
               </button>
@@ -232,16 +236,16 @@ export default function OrderDetail({ orderId }: Props) {
                 <button
                   onClick={confirmOrder}
                   disabled={confirming || order.items.length === 0}
-                  className="px-4 py-2 sm:px-5 sm:py-3 bg-blue-600 text-white rounded-xl font-bold text-sm sm:text-lg disabled:opacity-50 active:bg-blue-700"
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg active:bg-indigo-700 disabled:opacity-50 transition-colors"
                 >
                   {confirming ? "…" : "Confirm"}
                 </button>
               )}
-              {order.status === "confirmed" && (
+              {isConfirmed && (
                 <button
                   onClick={payOrder}
                   disabled={paying}
-                  className="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-xl font-bold text-sm sm:text-lg disabled:opacity-50 active:bg-green-700"
+                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg active:bg-emerald-700 disabled:opacity-50 transition-colors"
                 >
                   {paying ? "…" : "Pay & Close"}
                 </button>
@@ -251,66 +255,66 @@ export default function OrderDetail({ orderId }: Props) {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
+      <div className="max-w-2xl mx-auto p-4 space-y-4">
         {/* Error banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm font-medium">
             {error}
           </div>
         )}
 
-        {/* Order summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-600 mb-3 uppercase tracking-wide">
-            Order Summary
-          </h2>
+        {/* Order items */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Order</p>
+          </div>
           {order.items.length === 0 ? (
-            <p className="text-gray-400 text-center py-4">No items yet. Add products below.</p>
+            <p className="text-slate-400 text-center py-8 text-sm">No items yet. Add products below.</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {order.items.map((item) => (
-                <li key={item.id} className="flex items-center justify-between py-3 gap-3">
+                <li key={item.id} className="flex items-center justify-between px-4 py-3 gap-3">
                   <div className="flex-1 min-w-0">
-                    <span className="text-base sm:text-lg font-medium text-gray-800 block truncate">
+                    <span className="text-sm font-medium text-slate-800 block truncate">
                       {item.product.name}
                     </span>
                     {item.product.price > 0 && (
-                      <span className="text-sm text-gray-400">
-                        {item.product.price.toFixed(2)} × {item.quantity} = {(item.product.price * item.quantity).toFixed(2)}
+                      <span className="text-xs text-slate-400">
+                        {item.product.price.toFixed(2)} × {item.quantity} = {(item.product.price * item.quantity).toFixed(2)} €
                       </span>
                     )}
                   </div>
                   {!isPaid ? (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() =>
-                          order.status === "confirmed" || item.quantity === 1
+                          isConfirmed || item.quantity === 1
                             ? setRemoveModal({ itemId: item.id, productName: item.product.name, currentQuantity: item.quantity, fullRemove: item.quantity === 1 })
                             : updateQuantity(item.id, item.quantity - 1)
                         }
-                        className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
+                        className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-semibold text-base flex items-center justify-center active:bg-slate-200"
                       >
                         −
                       </button>
-                      <span className="text-lg font-bold text-gray-900 w-7 text-center">
+                      <span className="text-sm font-semibold text-slate-900 w-6 text-center">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
+                        className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-semibold text-base flex items-center justify-center active:bg-slate-200"
                       >
                         +
                       </button>
                       <button
                         onClick={() => setRemoveModal({ itemId: item.id, productName: item.product.name, currentQuantity: item.quantity, fullRemove: true })}
-                        className="ml-1 w-8 h-8 rounded-full bg-red-50 text-red-500 font-bold flex items-center justify-center active:bg-red-100"
+                        className="ml-1 w-7 h-7 rounded-full bg-red-50 text-red-400 flex items-center justify-center active:bg-red-100 text-sm"
                         title="Remove item"
                       >
                         ✕
                       </button>
                     </div>
                   ) : (
-                    <span className="text-lg sm:text-xl font-bold text-gray-900 bg-gray-100 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-semibold text-slate-700 bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center shrink-0">
                       {item.quantity}
                     </span>
                   )}
@@ -318,9 +322,10 @@ export default function OrderDetail({ orderId }: Props) {
               ))}
             </ul>
           )}
+
+          {/* IVA breakdown */}
           {order.items.length > 0 && order.items.some((i) => i.product.price > 0) && (() => {
             const total = order.items.reduce((s, i) => s + i.product.price * i.quantity, 0);
-            // Group IVA by rate
             const ivaByRate = new Map<number, number>();
             for (const i of order.items) {
               const lineTotal = i.product.price * i.quantity;
@@ -329,20 +334,20 @@ export default function OrderDetail({ orderId }: Props) {
             }
             const base = total - Array.from(ivaByRate.values()).reduce((s, v) => s + v, 0);
             return (
-              <div className="pt-3 mt-2 border-t border-gray-100 space-y-1">
-                <div className="flex justify-between text-sm text-gray-400">
+              <div className="px-4 py-3 border-t border-slate-100 space-y-1.5">
+                <div className="flex justify-between text-xs text-slate-400">
                   <span>Base imponible</span>
                   <span>{base.toFixed(2)} €</span>
                 </div>
                 {Array.from(ivaByRate.entries()).sort(([a], [b]) => a - b).map(([rate, iva]) => (
-                  <div key={rate} className="flex justify-between text-sm text-gray-400">
+                  <div key={rate} className="flex justify-between text-xs text-slate-400">
                     <span>IVA {rate}%</span>
                     <span>{iva.toFixed(2)} €</span>
                   </div>
                 ))}
-                <div className="flex justify-between items-center pt-1 border-t border-gray-100">
-                  <span className="font-semibold text-gray-700">Total</span>
-                  <span className="text-xl font-bold text-gray-900">{total.toFixed(2)} €</span>
+                <div className="flex justify-between items-center pt-1.5 border-t border-slate-100">
+                  <span className="text-sm font-semibold text-slate-700">Total</span>
+                  <span className="text-lg font-bold text-slate-900">{total.toFixed(2)} €</span>
                 </div>
               </div>
             );
@@ -352,33 +357,32 @@ export default function OrderDetail({ orderId }: Props) {
         {!isPaid && <ProductGrid products={products} onAdd={addItem} />}
 
         {isPaid && (
-          <div className="text-center py-6 text-gray-500 font-semibold text-base sm:text-lg bg-gray-100 rounded-2xl">
+          <div className="text-center py-6 text-slate-500 text-sm font-medium bg-white rounded-xl border border-slate-200">
             Order closed.
           </div>
         )}
 
         {/* Edit history */}
         {history.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <button
               onClick={() => setShowHistory((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left"
+              className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-slate-50"
             >
-              <span className="text-base sm:text-lg font-semibold text-gray-600 uppercase tracking-wide">
-                Edit History ({history.length})
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Edit history ({history.length})
               </span>
-              <span className="text-gray-400 text-lg">{showHistory ? "▲" : "▼"}</span>
+              <svg className={`w-4 h-4 text-slate-400 transition-transform ${showHistory ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
             {showHistory && (
-              <ul className="divide-y divide-gray-100 px-4 pb-3">
+              <ul className="divide-y divide-slate-100 border-t border-slate-100">
                 {history.map((log) => (
-                  <li key={log.id} className="py-2 flex items-start justify-between gap-3">
-                    <span className="text-sm text-gray-700">{formatAction(log)}</span>
-                    <span className="text-xs text-gray-400 shrink-0">
-                      {new Date(log.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                  <li key={log.id} className="px-4 py-2.5 flex items-start justify-between gap-3">
+                    <span className="text-sm text-slate-600">{formatAction(log)}</span>
+                    <span className="text-xs text-slate-400 shrink-0">
+                      {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </li>
                 ))}
@@ -390,42 +394,42 @@ export default function OrderDetail({ orderId }: Props) {
 
       {/* Remove item modal */}
       {removeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setRemoveModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">
-              {order.status === "confirmed" && !removeModal.fullRemove
+          <div className="relative bg-white rounded-xl shadow-xl p-5 w-full max-w-sm">
+            <h2 className="text-base font-semibold text-slate-900 mb-1">
+              {isConfirmed && !removeModal.fullRemove
                 ? `Remove 1× ${removeModal.productName}?`
                 : `Remove ${removeModal.productName}?`}
             </h2>
-            {order.status === "confirmed" ? (
+            {isConfirmed ? (
               <>
-                <p className="text-gray-500 text-sm mb-5">Choose how to handle this item:</p>
-                <div className="flex flex-col gap-3">
+                <p className="text-slate-500 text-sm mb-4">Choose how to handle this item:</p>
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={() => handleModalAction("return")}
-                    className="w-full py-3 rounded-xl bg-blue-50 text-blue-700 font-semibold active:bg-blue-100 text-left px-4"
+                    className="w-full py-3 rounded-lg bg-indigo-50 text-indigo-700 font-medium text-sm active:bg-indigo-100 text-left px-4"
                   >
                     Return to inventory
-                    <span className="block text-xs font-normal text-blue-400">Item was not used — stock restored</span>
+                    <span className="block text-xs font-normal text-indigo-400 mt-0.5">Item was not used — stock restored</span>
                   </button>
                   <button
                     onClick={() => handleModalAction("defect")}
-                    className="w-full py-3 rounded-xl bg-orange-50 text-orange-700 font-semibold active:bg-orange-100 text-left px-4"
+                    className="w-full py-3 rounded-lg bg-amber-50 text-amber-700 font-medium text-sm active:bg-amber-100 text-left px-4"
                   >
                     Defect / Waste
-                    <span className="block text-xs font-normal text-orange-400">Item was wasted or defective</span>
+                    <span className="block text-xs font-normal text-amber-500 mt-0.5">Item was wasted or defective</span>
                   </button>
                   <button
                     onClick={() => handleModalAction("comp")}
-                    className="w-full py-3 rounded-xl bg-purple-50 text-purple-700 font-semibold active:bg-purple-100 text-left px-4"
+                    className="w-full py-3 rounded-lg bg-violet-50 text-violet-700 font-medium text-sm active:bg-violet-100 text-left px-4"
                   >
                     Complimentary
-                    <span className="block text-xs font-normal text-purple-400">Given to client at no charge</span>
+                    <span className="block text-xs font-normal text-violet-400 mt-0.5">Given to client at no charge</span>
                   </button>
                   <button
                     onClick={() => setRemoveModal(null)}
-                    className="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold active:bg-gray-200"
+                    className="w-full py-3 rounded-lg bg-slate-100 text-slate-600 font-medium text-sm active:bg-slate-200"
                   >
                     Keep it
                   </button>
@@ -433,17 +437,17 @@ export default function OrderDetail({ orderId }: Props) {
               </>
             ) : (
               <>
-                <p className="text-gray-500 text-sm mb-6">This item will be removed from the order.</p>
-                <div className="flex gap-3">
+                <p className="text-slate-500 text-sm mb-5">This item will be removed from the order.</p>
+                <div className="flex gap-2.5">
                   <button
                     onClick={() => setRemoveModal(null)}
-                    className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold active:bg-gray-200"
+                    className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-medium text-sm active:bg-slate-200"
                   >
                     Keep it
                   </button>
                   <button
                     onClick={() => handleModalAction("return")}
-                    className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold active:bg-red-600"
+                    className="flex-1 py-2.5 rounded-lg bg-red-500 text-white font-medium text-sm active:bg-red-600"
                   >
                     Remove
                   </button>
@@ -456,23 +460,23 @@ export default function OrderDetail({ orderId }: Props) {
 
       {/* Cancel confirmation modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCancelModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Cancel order?</h2>
-            <p className="text-gray-500 text-sm mb-6">
+          <div className="relative bg-white rounded-xl shadow-xl p-5 w-full max-w-sm">
+            <h2 className="text-base font-semibold text-slate-900 mb-1">Cancel order?</h2>
+            <p className="text-slate-500 text-sm mb-5">
               This will free the table. The order history will be kept.
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold active:bg-gray-200"
+                className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-medium text-sm active:bg-slate-200"
               >
                 Keep it
               </button>
               <button
                 onClick={cancelOrder}
-                className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold active:bg-red-600"
+                className="flex-1 py-2.5 rounded-lg bg-red-500 text-white font-medium text-sm active:bg-red-600"
               >
                 Yes, cancel
               </button>

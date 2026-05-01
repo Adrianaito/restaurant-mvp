@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type Product = {
@@ -32,6 +33,7 @@ type PreviewLine = {
 };
 
 export default function ProductionLog() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [productions, setProductions] = useState<Production[]>([]);
 
@@ -113,30 +115,36 @@ export default function ProductionLog() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Production</h1>
-          <Link
-            href="/"
-            className="px-3 py-2 sm:px-4 sm:py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold text-base sm:text-lg"
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 px-4 py-4 sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto flex items-center gap-3">
+          <button
+            onClick={() => router.push("/")}
+            className="shrink-0 p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label="Back"
           >
-            ← Orders
-          </Link>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold text-slate-900">Production</h1>
         </div>
+      </div>
 
+      <div className="max-w-2xl mx-auto p-4 space-y-4">
         {/* Log a batch */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4 sm:mb-6">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
             Log a batch
           </p>
 
           {/* Product picker */}
           <div className="flex flex-wrap gap-2 mb-4">
             {products.length === 0 && (
-              <p className="text-gray-400 text-sm">
+              <p className="text-slate-400 text-sm">
                 No products yet.{" "}
-                <Link href="/recipes" className="text-blue-600 font-semibold">
+                <Link href="/recipes" className="text-indigo-600 font-medium">
                   Add one in Recipes.
                 </Link>
               </p>
@@ -149,10 +157,10 @@ export default function ProductionLog() {
                   setLogError(null);
                   setShortfalls([]);
                 }}
-                className={`px-4 py-2 rounded-xl font-semibold text-base border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                   selectedProductId === p.id
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700 border-gray-300 active:bg-gray-50"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-slate-700 border-slate-300 active:bg-slate-50"
                 }`}
               >
                 {p.name}
@@ -165,9 +173,7 @@ export default function ProductionLog() {
               {/* Units input */}
               <div className="flex items-end gap-4 mb-4">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">
-                    Units made
-                  </label>
+                  <label className="block text-xs text-slate-400 mb-1">Units made</label>
                   <input
                     type="number"
                     min="1"
@@ -178,63 +184,47 @@ export default function ProductionLog() {
                       setLogError(null);
                       setShortfalls([]);
                     }}
-                    className="w-28 border border-gray-300 rounded-xl px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-24 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 {selectedProduct.portionsPerUnit > 1 && (
-                  <p className="pb-2.5 text-sm text-gray-500">
-                    → <span className="font-semibold text-gray-800">{totalPortions}</span> portions
-                    <span className="text-gray-400 ml-1">
-                      ({unitsNum} × {selectedProduct.portionsPerUnit})
-                    </span>
+                  <p className="pb-2.5 text-sm text-slate-500">
+                    → <span className="font-semibold text-slate-800">{totalPortions}</span> portions
+                    <span className="text-slate-400 ml-1">({unitsNum} × {selectedProduct.portionsPerUnit})</span>
                   </p>
                 )}
               </div>
 
               {/* Ingredient preview */}
               {selectedProduct.recipeItems.length === 0 ? (
-                <p className="text-sm text-yellow-600 font-medium mb-4">
+                <p className="text-sm text-amber-600 font-medium mb-4">
                   This product has no recipe.{" "}
-                  <Link href="/recipes" className="underline">
-                    Add one in Recipes.
-                  </Link>
+                  <Link href="/recipes" className="underline">Add one in Recipes.</Link>
                 </p>
               ) : (
-                <div className="border border-gray-100 rounded-xl divide-y divide-gray-100 mb-4">
+                <div className="border border-slate-100 rounded-lg overflow-hidden divide-y divide-slate-100 mb-4">
                   {preview.map((line) => (
                     <div
                       key={line.name}
-                      className={`flex items-center justify-between px-4 py-3 ${
-                        line.ok ? "" : "bg-red-50"
-                      }`}
+                      className={`flex items-center justify-between px-4 py-3 ${line.ok ? "" : "bg-red-50"}`}
                     >
                       <div className="flex items-center gap-2">
                         {line.ok ? (
-                          <span className="text-green-500 font-bold text-sm">✓</span>
+                          <span className="text-emerald-500 font-bold text-xs">✓</span>
                         ) : (
-                          <span className="text-red-500 font-bold text-sm">✗</span>
+                          <span className="text-red-500 font-bold text-xs">✗</span>
                         )}
-                        <span
-                          className={`font-medium text-base ${
-                            line.ok ? "text-gray-800" : "text-red-700"
-                          }`}
-                        >
+                        <span className={`text-sm font-medium ${line.ok ? "text-slate-800" : "text-red-700"}`}>
                           {line.name}
                         </span>
                       </div>
                       <div className="text-right text-sm">
-                        <span
-                          className={`font-semibold ${
-                            line.ok ? "text-gray-700" : "text-red-600"
-                          }`}
-                        >
+                        <span className={`font-medium ${line.ok ? "text-slate-700" : "text-red-600"}`}>
                           {line.required} {line.unit}
                         </span>
-                        <span className="text-gray-400 ml-1">
-                          (have {line.stock})
-                        </span>
+                        <span className="text-slate-400 ml-1">(have {line.stock})</span>
                         {!line.ok && (
-                          <p className="text-red-500 text-xs font-semibold">
+                          <p className="text-red-500 text-xs font-medium mt-0.5">
                             short by {(line.required - line.stock).toFixed(1)} {line.unit}
                           </p>
                         )}
@@ -258,7 +248,7 @@ export default function ProductionLog() {
               <button
                 onClick={logProduction}
                 disabled={logging || !canLog}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold text-base disabled:opacity-50 active:bg-blue-700"
+                className="w-full py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg disabled:opacity-50 active:bg-indigo-700"
               >
                 {logging
                   ? "Logging…"
@@ -269,49 +259,41 @@ export default function ProductionLog() {
         </div>
 
         {/* Production history */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-          <div className="px-4 sm:px-5 py-3">
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-              History
-            </p>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">History</p>
           </div>
           {productions.length === 0 && (
-            <p className="text-center py-10 text-gray-400">No productions logged yet.</p>
+            <p className="text-center py-10 text-slate-400 text-sm">No productions logged yet.</p>
           )}
-          {productions.map((prod) => {
-            const remaining = prod.portionsMade - prod.soldCount;
-            return (
-              <div key={prod.id} className="px-4 sm:px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-800 text-base sm:text-lg truncate">
-                      {prod.product.name}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{formatDate(prod.createdAt)}</p>
-                  </div>
-                  <div className="shrink-0 text-right space-y-0.5">
-                    <div className="text-sm text-gray-500">
-                      <span className="font-semibold text-gray-800">{prod.portionsMade}</span> made
+          <div className="divide-y divide-slate-100">
+            {productions.map((prod) => {
+              const remaining = prod.portionsMade - prod.soldCount;
+              return (
+                <div key={prod.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{prod.product.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{formatDate(prod.createdAt)}</p>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      <span className="font-semibold text-gray-800">{prod.soldCount}</span> sold
-                    </div>
-                    <div
-                      className={`text-sm font-semibold ${
-                        remaining === 0
-                          ? "text-gray-400"
-                          : remaining <= 2
-                          ? "text-red-500"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {remaining} left
+                    <div className="shrink-0 text-right space-y-0.5">
+                      <div className="text-xs text-slate-500">
+                        <span className="font-semibold text-slate-800">{prod.portionsMade}</span> made
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        <span className="font-semibold text-slate-800">{prod.soldCount}</span> sold
+                      </div>
+                      <div className={`text-xs font-semibold ${
+                        remaining === 0 ? "text-slate-400" : remaining <= 2 ? "text-red-500" : "text-emerald-600"
+                      }`}>
+                        {remaining} left
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
